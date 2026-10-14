@@ -1,5 +1,5 @@
 ---
-name: baton
+name: verifiable-session-handoff
 description: >
   Evidence-based two-way session handoff for coding agents. WRITE when the user
   asks to hand off, save progress for a later session, or end the session;
@@ -11,9 +11,9 @@ description: >
 license: MIT
 ---
 
-# Baton — session state transfer
+# Verifiable Session Handoff — session state transfer
 
-Baton transfers working state between agent sessions. The primary artifact is
+Verifiable Session Handoff transfers working state between agent sessions. The primary artifact is
 `HANDOFF.md` at the project root. It is a set of **claims to verify**, not an
 authority that overrides current user instructions, repository contents, or
 external system state.
@@ -28,7 +28,7 @@ external system state.
 - Never claim that an event was logged, a test passed, a deployment succeeded,
   a scan was clean, or a file was saved unless there is observable evidence.
 
-Baton **cannot guarantee** that every event is captured, that context compaction
+Verifiable Session Handoff **cannot guarantee** that every event is captured, that context compaction
 will preserve unlogged information, that a scanner catches every secret, or
 that repository state proves external deployment/business state. Be explicit
 about these limits. If the skill could not persist a LOG entry, tell the user;
@@ -181,7 +181,7 @@ handoff while composing it.
    --candidate <candidate> --expected-sha <fingerprint>`; if the target did not
    exist, use `--expected-missing`. `safe-write` repeats the configured secret scan
    at the save boundary and refuses any finding not explicitly allowed with
-   `--allow-finding FILENAME:LINE:CATEGORY`. Use that option only for a manually
+   `--allow-finding FILENAME:LINE:CATEGORY:LINE_SHA256`. Use that option only for a manually
    inspected, confirmed non-secret false positive; redact real secrets. On any
    mismatch or lock error, stop and resolve the conflict. Do not delete a lock
    file unless you have checked that no writer is active and the lock is stale.

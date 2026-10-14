@@ -1,4 +1,4 @@
-# Migrating an existing Baton handoff from 0.1.x to 0.2.0
+# Migrating existing handoffs for Verifiable Session Handoff from 0.1.x to 0.2.0
 
 This release changes the handoff schema. **Do not expect an existing 0.1.x
 `HANDOFF.md` to pass the 0.2 validator unchanged.** Use the first WRITE after

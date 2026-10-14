@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate, fingerprint, and safely replace a Baton HANDOFF.md (stdlib only)."""
+"""Validate, fingerprint, and safely replace a Verifiable Session Handoff file (stdlib only)."""
 from __future__ import annotations
 
 import argparse

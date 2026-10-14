@@ -1,4 +1,4 @@
-# Baton testing guide / 测试指南
+# Verifiable Session Handoff testing guide / 测试指南
 
 This guide separates deterministic script tests from agent-behavior tests.
 Passing the scripts does not prove that every AI runtime follows the protocol.

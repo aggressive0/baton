@@ -1,4 +1,4 @@
-# baton
+# Verifiable Session Handoff
 
 **Pass the baton, not the blur. Two-way session handoff for AI coding agents.**
 
@@ -12,7 +12,7 @@
 
 ### What it does
 
-Baton helps one coding-agent session hand work to the next. It creates a single
+Verifiable Session Handoff helps one coding-agent session hand work to the next. It creates a single
 active `HANDOFF.md`, rebuilt from repository evidence and durable log entries,
 then checks that handoff against the current project before resuming.
 
@@ -29,7 +29,7 @@ A handoff contains **claims to verify, not facts to trust blindly**.
 
 No prompt or skill can guarantee that every important event is logged before
 context loss, that a secret scanner catches all secrets, or that Git status
-proves an external upload/deployment. Baton makes evidence and uncertainty
+proves an external upload/deployment. Verifiable Session Handoff makes evidence and uncertainty
 visible; it does not turn unverified claims into facts.
 
 ### Install
@@ -40,11 +40,11 @@ Claude Code:
 ```bash
 # Personal skill
 mkdir -p ~/.claude/skills
-git clone https://github.com/aggressive0/baton.git ~/.claude/skills/baton
+git clone https://github.com/aggressive0/baton.git ~/.claude/skills/verifiable-session-handoff
 
 # Or install at project level from the project root
 mkdir -p .claude/skills
-git clone https://github.com/aggressive0/baton.git .claude/skills/baton
+git clone https://github.com/aggressive0/baton.git .claude/skills/verifiable-session-handoff
 ```
 
 The skill uses the Agent Skills `SKILL.md` convention. Other runtimes may use a
@@ -102,7 +102,7 @@ stale lock.
 The scanner prints file, line, and finding category, but not the matched value.
 `safe-write` repeats the scan and blocks unapproved findings at the save
 boundary. An inspected non-secret false positive can be allowed explicitly with
-`--allow-finding FILENAME:LINE:CATEGORY`; never use this to retain a real secret.
+`--allow-finding FILENAME:LINE:CATEGORY:LINE_SHA256`; never use this to retain a real secret.
 Exit codes: `0` no configured-pattern matches; `1` at least one finding; `2`
 usage/read error. A clean scan is not proof that no sensitive information is
 present; inspect the handoff manually too.
@@ -146,7 +146,7 @@ baton/
 
 ### 这是什么
 
-Baton 用于把一个 AI 编码会话的工作状态交给下一个会话。它让 Agent 从仓库证据和持久化日志重建 `HANDOFF.md`，并在恢复工作前核对交接内容与当前项目状态。
+Verifiable Session Handoff 用于把一个 AI 编码会话的工作状态交给下一个会话。它让 Agent 从仓库证据和持久化日志重建 `HANDOFF.md`，并在恢复工作前核对交接内容与当前项目状态。
 
 核心原则：**交接文档里是待验证的主张，不是可以盲信的事实。**
 
@@ -159,7 +159,7 @@ Baton 用于把一个 AI 编码会话的工作状态交给下一个会话。它�
 
 ### 保证边界
 
-任何提示词或 Skill 都无法保证上下文丢失前每条重要事件都已记录，也不能保证秘钥扫描发现所有敏感信息，更不能只凭 Git 状态证明外部上传或部署成功。Baton 的目标是暴露证据与不确定性，而不是把未经验证的说法变成事实。
+任何提示词或 Skill 都无法保证上下文丢失前每条重要事件都已记录，也不能保证秘钥扫描发现所有敏感信息，更不能只凭 Git 状态证明外部上传或部署成功。Verifiable Session Handoff 的目标是暴露证据与不确定性，而不是把未经验证的说法变成事实。
 
 ### 安装
 
@@ -168,11 +168,11 @@ Baton 用于把一个 AI 编码会话的工作状态交给下一个会话。它�
 ```bash
 # 个人级
 mkdir -p ~/.claude/skills
-git clone https://github.com/aggressive0/baton.git ~/.claude/skills/baton
+git clone https://github.com/aggressive0/baton.git ~/.claude/skills/verifiable-session-handoff
 
 # 或在项目根目录安装为项目级 Skill
 mkdir -p .claude/skills
-git clone https://github.com/aggressive0/baton.git .claude/skills/baton
+git clone https://github.com/aggressive0/baton.git .claude/skills/verifiable-session-handoff
 ```
 
 其他运行时的 Skill 目录可能不同，请遵循对应工具的安装约定。

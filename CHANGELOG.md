@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Rebranded the display name and Agent Skill ID as **Verifiable Session Handoff** (`verifiable-session-handoff`). The tagline “Pass the baton, not the blur” is retained.
+
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
