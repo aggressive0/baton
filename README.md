@@ -40,11 +40,11 @@ Claude Code:
 ```bash
 # Personal skill
 mkdir -p ~/.claude/skills
-git clone https://github.com/aggressive0/baton.git ~/.claude/skills/verifiable-session-handoff
+git clone https://github.com/aggressive0/verifiable-session-handoff.git ~/.claude/skills/verifiable-session-handoff
 
 # Or install at project level from the project root
 mkdir -p .claude/skills
-git clone https://github.com/aggressive0/baton.git .claude/skills/verifiable-session-handoff
+git clone https://github.com/aggressive0/verifiable-session-handoff.git .claude/skills/verifiable-session-handoff
 ```
 
 The skill uses the Agent Skills `SKILL.md` convention. Other runtimes may use a
@@ -125,7 +125,7 @@ that loses a user constraint or misstates project state is still a failed handof
 ### Repository layout
 
 ```text
-baton/
+verifiable-session-handoff/
 ├── SKILL.md
 ├── references/
 │   ├── template.md
@@ -168,11 +168,11 @@ Verifiable Session Handoff 用于把一个 AI 编码会话的工作状态交给�
 ```bash
 # 个人级
 mkdir -p ~/.claude/skills
-git clone https://github.com/aggressive0/baton.git ~/.claude/skills/verifiable-session-handoff
+git clone https://github.com/aggressive0/verifiable-session-handoff.git ~/.claude/skills/verifiable-session-handoff
 
 # 或在项目根目录安装为项目级 Skill
 mkdir -p .claude/skills
-git clone https://github.com/aggressive0/baton.git .claude/skills/verifiable-session-handoff
+git clone https://github.com/aggressive0/verifiable-session-handoff.git .claude/skills/verifiable-session-handoff
 ```
 
 其他运行时的 Skill 目录可能不同，请遵循对应工具的安装约定。
