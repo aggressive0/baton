@@ -6,10 +6,12 @@ description: >
   "save progress", "会话要结束了", "交接", "保存进度", "明天继续", "先到这",
   "下次继续"), rebuild HANDOFF.md from evidence (git, files, append-only
   logs) — task, done, blockers, next steps, pitfalls, user-rejected
-  approaches. READ side: when starting fresh in a project that has
-  HANDOFF.md ("continue from handoff", "继续上次", "接着做", "read handoff",
-  "resume"), verify it against git state, echo the plan back for
-  confirmation, then resume. LOG pitfalls and user rejections the moment
+  approaches. READ side: when resuming prior work from a previous session ("read
+  handoff", "读交接", "continue from the handoff", "resume the handoff",
+  "继续上次的工作"), verify it against git state, echo the plan back for
+  confirmation, then resume. Do NOT trigger for generic continue-requests
+  about the code at hand ("继续跑这份代码", "run it again", "keep going")
+  unless the user references the handoff or the previous session. LOG pitfalls and user rejections the moment
   they happen; suggest a handoff proactively when the user mentions stopping
   soon or after context compaction.
 license: MIT
@@ -144,9 +146,16 @@ compaction just occurred and work is mid-flight.
 
 ### READ — bootstrap a new session
 
-Triggers: HANDOFF.md exists and the user asks to continue work ("继续上次",
-"continue from the handoff", "resume"), or the user starts a session in a
-project with HANDOFF.md present and mentions the task.
+Triggers: the user asks to resume prior work from a previous session
+("read handoff", "读交接", "continue from the handoff", "继续上次的工作").
+Generic continue-requests about the code at hand ("继续跑这份代码",
+"run it again") are NOT triggers — see step 0.
+
+0. **Gate.** If HANDOFF.md does not exist in the project root, or the
+   user's request clearly refers to the code at hand rather than to
+   resuming prior work, exit with one line — "No handoff resume intended
+   — proceeding normally" — and load nothing else. A misfire costs one
+   `Test-Path` and one sentence, never a full READ.
 
 1. **Drift check.** Compare frontmatter `git.head` with current HEAD,
    `git.branch` with current branch, `git.dirty` with current status.

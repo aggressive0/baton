@@ -57,3 +57,8 @@ Initial release.
 - Section 5 verify commands run once at WRITE, or carry a shell
   annotation (PS5 has no grep/wc)
 - WRITE report includes timestamp and line-count evidence
+- READ step-0 gate: a misfired resume request exits in one line and
+  loads nothing; generic "keep going" requests are explicitly not READ
+  triggers
+- READ trigger list tightened, with explicit do-not-trigger
+  counterexamples in the description
