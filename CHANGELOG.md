@@ -46,3 +46,14 @@ Initial release.
   inlined or marked
 - Portable executable checks: time and line-count commands with a python
   fallback for coreutils-stripped environments
+- Reconstructed entries may carry coarse dates (`约 2026-09 上旬`) but
+  never none
+- To-dos hiding inside pitfall entries get split into Section 5 with
+  cross-references
+- Unresolved PROMOTE candidates re-surface at the top of every WRITE
+  report until decided
+- Completion claims re-verified before entering the file; numbers come
+  from artifacts, never memory
+- Section 5 verify commands run once at WRITE, or carry a shell
+  annotation (PS5 has no grep/wc)
+- WRITE report includes timestamp and line-count evidence

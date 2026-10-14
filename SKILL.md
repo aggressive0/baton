@@ -54,6 +54,9 @@ exist yet):
 Every Section 2 and 6 entry starts with its date, written at LOG time:
 `- ❌ <approach> — rejected 10-13: <reason>`. The date is the proof the
 entry was captured in the moment, not reconstructed at session death.
+In a `captured: reconstructed` file, coarse dates are acceptable
+(`约 2026-09 上旬`) — an empty date is not: relative age decides how much
+a ban may already have been overtaken by later work.
 
 Sections 2 and 6 are **append-only** for the rest of the session: never
 rewrite, summarize, or "clean them up" — not even during final WRITE. They
@@ -96,6 +99,17 @@ compaction just occurred and work is mid-flight.
    process narrative. Non-git claims (docx, binaries, deployments) carry
    their verification action inside the claim itself — "22 edits,
    verify: open 摘要 last paragraph" — never a bare claim.
+   - Re-verify every completion claim before it enters the file: run the
+     check, `Test-Path` the file, compile. A claim taken from session
+     memory is how "已上传" lies happen.
+   - Numbers come from artifacts (command output, reports/*.xlsx), never
+     from memory.
+   - Sweep Section 6 for to-dos hiding inside pitfall entries; split
+     them: the fact stays in Section 6, the action becomes a Section 5
+     step, cross-referenced. Cold-start readers plan from Section 5.
+   - Each Section 5 verify command must run in the target session's
+     shell: run it once here, or annotate the shell it needs
+     (`git-bash`, not PS5 — no `grep`/`wc` there).
 6. **PROMOTE candidates, explicitly.** Apply the decidable test (see
    PROMOTE below) to every active Section 6 ban and every Section 7 fact:
    does it survive a task switch? List the candidates to the user; on
@@ -103,7 +117,10 @@ compaction just occurred and work is mid-flight.
    the handoff. Removal is not an append-only violation — the information
    persists in CLAUDE.md; append-only guards against loss, not against
    relocation. Skipping this step silently is how the baton rots into a
-   wiki (observed in the wild).
+   wiki (observed in the wild). Candidates the user never answered are
+   re-surfaced at the top of the next WRITE report — `上一版有 N 条
+   PROMOTE 候选等待你确认` — until decided; a candidate left to rot in
+   Section 8 is a candidate lost.
 7. Set frontmatter `captured:` honestly — `log` if Sections 2/6 were
    appended by LOG during this session, `reconstructed` if rebuilt from
    memory (e.g. first adoption on an ongoing project). READ weights entry
@@ -120,8 +137,10 @@ compaction just occurred and work is mid-flight.
    flow in `references/template.md` ("Secret scan"), or
    `sh scripts/scan.sh HANDOFF.md`. Show the user every hit — or the
    script's "0 hits" line — before saving. Never pass a scan silently.
-10. Save. Report one line to the user: path, line count from the command
-   you ran, first next step.
+10. Save. Report to the user: path, the measured line count, the pasted
+   output of your time command (timestamp evidence), any unresolved
+   PROMOTE candidates carried over from the previous handoff, and the
+   first next step.
 
 ### READ — bootstrap a new session
 

@@ -105,8 +105,10 @@ Over budget? See "Compression order" at the bottom.
   user's patience re-arguing from zero.
 - One line each: approach + the user's reason + the date, written at LOG
   time (`rejected 10-13`). An undated entry cannot be told apart from a
-  deathbed recollection. Append-only. If the user reverses a decision,
-  append the reversal — never edit or delete the original entry.
+  deathbed recollection. In a `reconstructed` file, coarse dates are
+  acceptable (`约 2026-09 上旬`) — an empty date is not. Append-only. If
+  the user reverses a decision, append the reversal — never edit or
+  delete the original entry.
 
 ### 3. Completed
 
@@ -125,6 +127,10 @@ Over budget? See "Compression order" at the bottom.
   full message, untruncated.
 - Location as `file:line`. Repro must be a runnable command. If no repro
   exists, write what you tried and why it failed.
+- A blocker that is an absence ("file missing", "not uploaded") carries
+  evidence of the search, not just the verdict: the command you ran and
+  what it returned. Mark unrelated nearby artifacts explicitly, so the
+  next session does not hook onto them.
 - When the blocker resolves, rewrite this section on the next WRITE.
   Resolved blockers never accumulate here — they become Section 3 or 6.
 
@@ -145,6 +151,11 @@ Over budget? See "Compression order" at the bottom.
 - No references a fresh session cannot resolve. Anything outside the repo
   (local memory files, another machine) → inline the essential content,
   or mark `[local-only]` and put the essentials in the step itself.
+- Verify commands are runnable in the next session's shell: run each
+  once at WRITE, or annotate the shell it needs. `grep`/`wc` do not
+  exist in PowerShell 5 — use `Select-String` / `Measure-Object -Line`
+  there. An unverified verify command is a protocol violation in
+  miniature.
 
 ### 6. Pitfalls & bans [protected]
 
@@ -163,6 +174,10 @@ Over budget? See "Compression order" at the bottom.
   tool, or user-behavior fact) moves to CLAUDE.md/AGENTS.md after user
   confirmation — decidable test in SKILL.md. Removal is not an
   append-only violation; the information persists, relocated.
+- A to-do hiding inside a pitfall entry gets split: the fact stays here,
+  the action becomes a Section 5 step, the two cross-reference each
+  other. Readers plan from Section 5; actions buried here do not exist
+  for them.
 
 ### 7. Environment quickref
 

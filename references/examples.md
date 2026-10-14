@@ -137,3 +137,26 @@ to the tail — tagged, never edited:
 Archived lines do not count toward the 120-line budget and stay
 append-only until the task closes; then the section may be emptied in the
 same commit — git history is the archive.
+
+## Patterns worth stealing (from a real field test)
+
+A negative-finding blocker — the verdict carries its evidence:
+
+```markdown
+# 4. Current blocker
+- Symptom: `start_formulas.docx` missing from repo root (expected by plan)
+- Location: repo root, then full-tree search
+- Repro: `Test-Path .\start_formulas.docx` → False; `Get-ChildItem
+  -Recurse -Filter start_formulas.docx` → nothing. Verdict: never
+  written to disk — the next session must create it, not look for it.
+- Unrelated: `论文.docx` in root belongs to another task — do not hook on.
+```
+
+And the meta-pitfall it produced:
+
+```markdown
+- [pitfall] 10-14 "已上传" claimed without checking — root cause:
+  completion claims taken from session memory. Ban: every completion
+  claim is re-verified (Test-Path / compile / run) before it enters
+  the handoff.
+```
