@@ -23,10 +23,10 @@ read with verification.
 
 | Mechanism | What it does |
 |---|---|
-| **LOG** | Pitfalls and user rejections are appended to protected sections the moment they happen — crash- and compaction-resilient |
-| **WRITE** | Rebuilds HANDOFF.md from git + logs at session end; per-section budgets under a 120-line cap measured by command; scans for secrets; refuses to overwrite a handoff changed since the session last read it |
-| **READ** | New session checks git drift, spot-checks claims, echoes the plan back and waits for your confirmation before touching anything |
-| **PROMOTE** | Durable knowledge moves to CLAUDE.md/AGENTS.md; the handoff stays a baton, not a wiki |
+| **LOG** | Pitfalls and user rejections are appended to protected sections the moment they happen — dated, crash- and compaction-resilient |
+| **WRITE** | Rebuilds HANDOFF.md from git + logs at session end; per-section budgets under a 120-line cap measured by command; lists PROMOTE candidates for your confirmation; scans for secrets; refuses to overwrite a handoff changed since the session last read it |
+| **READ** | New session checks git drift, spot-checks claims (harder on self-admitted reconstructed handoffs), echoes the plan back and waits for your confirmation before touching anything |
+| **PROMOTE** | Durable knowledge moves to CLAUDE.md/AGENTS.md by a decidable test — does the ban survive a task switch? The handoff stays a baton, not a wiki |
 
 Works with any tool that follows the [Agent Skills](https://github.com/anthropics/skills)
 SKILL.md convention (Claude Code and compatible runtimes).
@@ -131,10 +131,10 @@ Agent 会话结束时，上下文随之消亡。compaction 有损且不可验证
 
 | 机制 | 作用 |
 |---|---|
-| **LOG** | 踩坑和用户否决当场追加到受保护段，不怕崩溃和 compaction |
-| **WRITE** | 会话末从 git + 日志重建，硬上限 120 行，保存前扫描秘钥 |
-| **READ** | 新会话先查 git 漂移、抽查断言、向你复述计划并等你确认，然后才动手 |
-| **PROMOTE** | 永久性知识迁到 CLAUDE.md/AGENTS.md，交接文档只做接力棒，不做 wiki |
+| **LOG** | 踩坑和用户否决当场追加到受保护段，带日期，不怕崩溃和 compaction |
+| **WRITE** | 会话末从 git + 日志重建，逐节预算、120 行用命令实测；PROMOTE 候选列给你确认；保存前扫描秘钥；拒绝覆盖本会话没读过的最新交接 |
+| **READ** | 新会话先查 git 漂移、抽查断言（自报 reconstructed 的文档抽查加倍）、向你复述计划并等你确认，然后才动手 |
+| **PROMOTE** | 用可判定规则迁移永久知识——这条 ban 换个任务还成立吗？成立就进 CLAUDE.md/AGENTS.md，交接棒不做 wiki |
 
 适用于遵循 SKILL.md 规范的工具（Claude Code 及兼容运行时）。
 

@@ -40,6 +40,7 @@ Why it fails:
 ---
 updated: 2026-10-13T21:30+08:00  # pasted from `date +%Y-%m-%dT%H:%M%z`
 git: { branch: feat/parser, head: a1b2c3d, dirty: true }
+captured: log
 tasks: [{ name: parser rewrite, status: blocked }]
 ---
 
@@ -50,12 +51,14 @@ v0.4 release; unblocks table rendering.
 > "不要引入新依赖" — user, 2026-10-13
 
 # 2. User-rejected approaches
-- ❌ Third-party parser lib (html5ever) — rejected by user: 不引入新依赖
-- ❌ Incremental regex patching — rejected by user: 嵌套结构会继续崩
+- ❌ Third-party parser lib (html5ever) — rejected 10-13: 不引入新依赖
+- ❌ Incremental regex patching — rejected 10-13: 嵌套结构会继续崩
 
 # 3. Completed
 - ✅ lexer rewrite → a1b2c3d, 42/42 tests pass
 - ✅ parser API surface frozen → src/parser.py, signature review done
+- ✅ migration guide drafted → docs/migration.md, verify: read "Breaking
+  changes" section covers all 4 renamed APIs
 
 # 4. Current blocker
 - Symptom: `KeyError: 'tag'` in test_nested_table
@@ -71,12 +74,14 @@ v0.4 release; unblocks table rendering.
    verify: `pytest tests/test_render.py -k table -q`
 3. Delete dead regex paths → expected: no references to legacy parser;
    verify: `grep -r legacy_parser src/` empty + full suite green
+4. Tag v0.4.0 release → 前置: steps 1-3 green + Q1 answered;
+   verify: `git tag v0.4.0` exists
 
 # 6. Pitfalls & bans
-- [pitfall] os.path joins broke on Windows CI — root cause: mixed
+- [pitfall] 10-13 os.path joins broke on Windows CI — root cause: mixed
   separators in fixture paths. Ban: pathlib everywhere, never os.path.
-- [pitfall] `pytest -q` alone hid 2 skipped tests — root cause: skipif
-  markers on py<3.10. Ban: run `pytest -rs` before claiming green.
+- [pitfall] 10-13 `pytest -q` alone hid 2 skipped tests — root cause:
+  skipif markers on py<3.10. Ban: run `pytest -rs` before claiming green.
 
 # 7. Environment quickref
 - Test: `pytest -x -q` · Build: `python -m build` · Lint: `ruff check src`
@@ -87,8 +92,11 @@ v0.4 release; unblocks table rendering.
 ```
 
 Note: the protected sections (1 quotes, 2, 6) carry entries that were
-appended **during** the session, at the moment they happened — not
-recalled at write time. Section 4's repro command runs as-is.
+appended **during** the session, at the moment they happened — the dates
+and `captured: log` say so, and READ can check them. Section 4's repro
+command runs as-is. Step 4 shows a gated step cross-referencing its
+prerequisites instead of leaving them buried in Section 8. The migration
+guide entry is a non-git claim carrying its verification action inline.
 
 ## Over-cap compression example
 

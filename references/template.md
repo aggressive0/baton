@@ -9,8 +9,9 @@ never paraphrased.
 
 ```markdown
 ---
-updated: <pasted from `date +%Y-%m-%dT%H:%M%z`>
+updated: <pasted output of a time command — see frontmatter rules>
 git: { branch: <branch>, head: <short hash|none>, dirty: <bool> }
+captured: log|reconstructed
 tasks: [{ name: <short name>, status: active|blocked|review|done }]
 ---
 
@@ -19,7 +20,7 @@ tasks: [{ name: <short name>, status: active|blocked|review|done }]
 > "<hard requirement in the user's exact words>" — user, <date>   [protected]
 
 # 2. User-rejected approaches                        <!-- ≤10, protected -->
-- ❌ <approach> — rejected by user: <their reason>
+- ❌ <approach> — rejected <MM-DD>: <their reason>
 
 # 3. Completed                                            <!-- ≤15 lines -->
 - ✅ <what> → <commit hash | file path>, <verification result>
@@ -30,10 +31,10 @@ tasks: [{ name: <short name>, status: active|blocked|review|done }]
 - Repro: <exact command that reproduces it>
 
 # 5. Next steps                                           <!-- ≤15 lines -->
-1. <action> → expected: <observable result>; verify: <command>
+1. <action> [前置: <step#>] → expected: <observable result>; verify: <command>
 
 # 6. Pitfalls & bans                            <!-- ≤30, protected -->
-- [pitfall] <phenomenon> — root cause: <cause>. Ban: <rule for the next session>
+- [pitfall] <MM-DD> <phenomenon> — root cause: <cause>. Ban: <rule for the next session>
 
 # 7. Environment quickref                                  <!-- ≤6 lines -->
 - Test: `<cmd>` · Build: `<cmd>` · Run: `<cmd>`
@@ -50,8 +51,9 @@ tasks: [{ name: <short name>, status: active|blocked|review|done }]
 
 Budgets include each section heading. Active total ≈ 106 lines plus blank
 lines — comfortably under the 120 hard cap, which is checked with a
-command (`wc -l HANDOFF.md`; PowerShell: `(gc HANDOFF.md | measure
--Line).Lines`), never by eye.
+command, never by eye: `wc -l HANDOFF.md` (POSIX) · `(gc HANDOFF.md |
+measure -Line).Lines` (PowerShell) · `python -c "print(sum(1 for _ in
+open('HANDOFF.md')))"` (portable fallback).
 
 | Part | Budget |
 |---|---|
@@ -72,9 +74,16 @@ Over budget? See "Compression order" at the bottom.
 
 ### Frontmatter
 
-- `updated`: run `date +%Y-%m-%dT%H:%M%z` (PowerShell:
-  `Get-Date -Format "yyyy-MM-ddTHH:mmzzz"`) and paste the output. Models
-  guess clocks badly; never write a time from memory.
+- `updated`: run a time command and paste the output. Models guess clocks
+  badly; never write a time from memory. `date +%Y-%m-%dT%H:%M%z` (POSIX) ·
+  `Get-Date -Format "yyyy-MM-ddTHH:mmzzz"` (PowerShell) · `python -c
+  "import datetime;print(datetime.datetime.now().astimezone().isoformat())"`
+  (portable fallback where coreutils are unavailable).
+- `captured`: `log` if Sections 2/6 were appended by LOG during the
+  session; `reconstructed` if rebuilt from memory (first adoption on an
+  ongoing project). Self-reported — READ weights entry dates over this
+  flag — but lying here defeats the trust model. `reconstructed` triggers
+  wider spot-checks on READ.
 - `git`: fill from actual `git status` / `git rev-parse --short HEAD`,
   never from memory. `dirty: true` if any uncommitted changes exist.
   No repo → `git: none`. Empty repo (no commits) → `head: none`.
@@ -94,15 +103,20 @@ Over budget? See "Compression order" at the bottom.
 - The highest-value, most-often-omitted section. Without it, the next
   session will politely re-propose the rejected approach and burn the
   user's patience re-arguing from zero.
-- One line each: approach + the user's reason. Append-only. If the user
-  reverses a decision, append the reversal — never edit or delete the
-  original entry.
+- One line each: approach + the user's reason + the date, written at LOG
+  time (`rejected 10-13`). An undated entry cannot be told apart from a
+  deathbed recollection. Append-only. If the user reverses a decision,
+  append the reversal — never edit or delete the original entry.
 
 ### 3. Completed
 
 - Evidence only: commit hash or file path + verification result. One line
   per item. Process narrative ("we tried X, then Y") is deleted on
   rebuild — git history holds it.
+- Non-git artifacts (docx, binaries, deployments) cannot be verified from
+  the repo — so the verification action lives inside the claim:
+  `✅ paper P0 fixes → 论文.docx, 22 edits, verify: open 摘要 last
+  paragraph`. A bare claim is unverifiable by design.
 - First section to compress when over the line cap.
 
 ### 4. Current blocker
@@ -120,6 +134,17 @@ Over budget? See "Compression order" at the bottom.
   command. A step without a verify command is a wish, not a step.
 - Carry unfinished steps forward from the previous handoff; delete
   finished ones. This section must shrink as often as it grows.
+- Steps that gate each other carry the dependency inline:
+  `4. Push release → 前置: step 3 green`. Never let a step depend on an
+  open question in Section 8 — upgrade the question to a step, or
+  cross-reference it: `5. Make repo public → 前置: Q3 privacy review`.
+  A question has no owner; a step does.
+- Steps addressed at the reader (tests, checks) say so: "You are the READ
+  test for this file: run the READ protocol and report." Never leave a
+  step that could mean "do X" or "you are the X".
+- No references a fresh session cannot resolve. Anything outside the repo
+  (local memory files, another machine) → inline the essential content,
+  or mark `[local-only]` and put the essentials in the step itself.
 
 ### 6. Pitfalls & bans [protected]
 
@@ -134,6 +159,10 @@ Over budget? See "Compression order" at the bottom.
   `resolved: <commit|date>` and move it verbatim to `## Archived` —
   outside every budget, still append-only, never edited. Unresolved
   entries never leave Section 6. Section 2 rejections never archive.
+- PROMOTE check at WRITE: a ban that survives a task switch (environment,
+  tool, or user-behavior fact) moves to CLAUDE.md/AGENTS.md after user
+  confirmation — decidable test in SKILL.md. Removal is not an
+  append-only violation; the information persists, relocated.
 
 ### 7. Environment quickref
 
@@ -145,6 +174,9 @@ Over budget? See "Compression order" at the bottom.
 
 - Anything you would otherwise interrupt the user to ask mid-session.
   Parked here, they can be answered asynchronously.
+- Gate check: a question that is a prerequisite for a next step is not a
+  question — upgrade it to a verify-able step or cross-reference it from
+  the step it gates (see Section 5 rules).
 
 ## Secret scan (before every WRITE save)
 

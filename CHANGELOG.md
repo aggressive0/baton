@@ -33,3 +33,16 @@ Initial release.
   spot-checks, mtimes advisory only
 - Branch-strategy guidance: merge often / personal-branch-only / optional
   `HANDOFF.<branch>.md`
+- Dated entries + frontmatter `captured: log|reconstructed`: in-the-moment
+  capture is verifiable; READ widens spot-checks on reconstructed handoffs
+  and weights entry dates over the self-reported flag
+- PROMOTE made executable: decidable test ("does the ban survive a task
+  switch?"), explicit candidate list with user confirmation at WRITE,
+  append-only clarified (relocation is not loss)
+- Non-git claims (docx, binaries) carry their verification action inline
+- Open questions that gate a next step upgrade to steps or carry explicit
+  前置 cross-references
+- No references a fresh session cannot resolve: local-only paths must be
+  inlined or marked
+- Portable executable checks: time and line-count commands with a python
+  fallback for coreutils-stripped environments
