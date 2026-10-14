@@ -17,7 +17,8 @@ python scripts/scan_secrets.py --help
 Expected: all tests pass. The tests cover valid handoff structure, missing
 sections, unresolved placeholders, the 120-line limit, successful safe-write,
 refusal of an invalid candidate, stale fingerprint conflict, save-boundary
-secret scanning, redaction of matched values in scanner output, and a clean scan.
+secret scanning, same-snapshot writes, content-bound false-positive allowances,
+compound environment variable detection, redaction of matched values, and clean scans.
 
 ## 2. Test a real session handoff
 
@@ -49,9 +50,22 @@ secrets in test fixtures.
 
 1. In a disposable candidate, add a fake token such as `ghp_` plus 36 `A` characters.
 2. Run `python scripts/scan_secrets.py <candidate>`.
-3. Expected: exit code `1`, a finding category and line number, but no secret value in stdout.
+3. Expected: exit code `1`, finding category, line number, and line SHA-256, but no secret value in stdout. Confirm OPENAI_API_KEY, AWS_SECRET_ACCESS_KEY, CLIENT_SECRET, and GITHUB_TOKEN assignments are detected.
 4. Attempt `safe-write` without an allowance. Expected: target is unchanged and the save is refused.
 5. Remove the fake token and re-run the scan and write.
+
+### Candidate mutation after scan
+
+1. Prepare a valid candidate and begin `safe-write` in a test harness.
+2. Mutate the original candidate immediately after `scan_text` returns, inserting a fake credential.
+3. Expected: the target contains exactly the bytes from the validated/scanned snapshot, not the later candidate contents.
+
+### Approval content binding
+
+1. Insert a known non-secret false positive into a candidate and run the scanner.
+2. Pass the reported `FILENAME:LINE:CATEGORY:LINE_SHA256` as `--allow-finding`.
+3. Change the text on that line while preserving the same filename, line number, and finding category.
+4. Expected: safe-write refuses the stale allowance and leaves the target unchanged.
 
 ### Evidence expiry
 

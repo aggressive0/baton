@@ -6,13 +6,13 @@ import argparse
 import hashlib
 import os
 import re
-import shutil
+import stat
 import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
 
-from scan_secrets import scan_path
+from scan_secrets import scan_path, scan_text
 
 REQUIRED_HEADINGS = [
     "# 1. Task & user intent",
@@ -45,16 +45,8 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def validate_file(path: Path) -> list[str]:
+def validate_content(content: str) -> list[str]:
     issues: list[str] = []
-    if not path.is_file():
-        return [f"FAIL: file not found: {path}"]
-
-    try:
-        content = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError) as exc:
-        return [f"FAIL: cannot read UTF-8 file: {exc}"]
-
     lines = content.splitlines()
     if len(lines) > 120:
         issues.append(f"FAIL: {len(lines)} lines; active HANDOFF.md limit is 120 (includes blanks/frontmatter).")
@@ -131,6 +123,16 @@ def validate_file(path: Path) -> list[str]:
     return issues
 
 
+def validate_file(path: Path) -> list[str]:
+    if not path.is_file():
+        return [f"FAIL: file not found: {path}"]
+    try:
+        content = path.read_bytes().decode("utf-8")
+    except (OSError, UnicodeError) as exc:
+        return [f"FAIL: cannot read UTF-8 file: {exc}"]
+    return validate_content(content)
+
+
 def acquire_lock(lock_path: Path) -> int | None:
     flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
     try:
@@ -142,6 +144,24 @@ def acquire_lock(lock_path: Path) -> int | None:
     return fd
 
 
+def _finding_id(finding) -> str:
+    return f"{finding.path}:{finding.line}:{finding.category}:{finding.line_sha256}"
+
+
+def _read_regular_file_snapshot(path: Path) -> bytes:
+    """Read once; reject symlinks where O_NOFOLLOW is available and non-regular files."""
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, flags)
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise OSError(f"not a regular file: {path}")
+        with os.fdopen(fd, "rb", closefd=False) as handle:
+            return handle.read()
+    finally:
+        os.close(fd)
+
+
 def safe_write(target: Path, candidate: Path, expected_sha: str | None, expected_missing: bool, allowed_findings: set[str]) -> int:
     if target.is_symlink():
         print(f"FAIL: refusing to replace symlink target: {target}", file=sys.stderr)
@@ -150,8 +170,9 @@ def safe_write(target: Path, candidate: Path, expected_sha: str | None, expected
         print(f"FAIL: refusing symlink candidate: {candidate}", file=sys.stderr)
         return 2
     target = target.resolve()
-    candidate = candidate.resolve()
-    if target == candidate:
+    # Keep candidate path absolute but do not re-open it after snapshotting.
+    candidate = Path(os.path.abspath(candidate))
+    if target == candidate.resolve():
         print("FAIL: candidate must be a separate file, not the live target.", file=sys.stderr)
         return 2
     if not candidate.is_file():
@@ -161,36 +182,48 @@ def safe_write(target: Path, candidate: Path, expected_sha: str | None, expected
         print(f"FAIL: target directory does not exist: {target.parent}", file=sys.stderr)
         return 2
 
-    candidate_issues = validate_file(candidate)
+    # Freeze candidate bytes exactly once. Validation, scanning, and the final
+    # write all consume this same snapshot, so replacing/editing the candidate
+    # after scanning cannot smuggle different bytes into the destination.
+    try:
+        candidate_bytes = _read_regular_file_snapshot(candidate)
+        candidate_content = candidate_bytes.decode("utf-8")
+    except (OSError, UnicodeError) as exc:
+        print(f"FAIL: cannot safely read candidate snapshot: {exc}", file=sys.stderr)
+        return 2
+
+    candidate_issues = validate_content(candidate_content)
     if candidate_issues:
         print("Candidate validation failed; target was not changed:", file=sys.stderr)
         print("\n".join(candidate_issues), file=sys.stderr)
         return 1
 
-    # Re-scan at the save boundary so a missed manual scan cannot silently pass.
-    scan_targets = [candidate]
+    # Scan the exact immutable candidate snapshot; read the archive once too.
+    scan_targets: list[tuple[str, list]] = [(candidate.name, scan_text(candidate.name, candidate_content))]
     archive = target.parent / "HANDOFF.archive.md"
-    if target.name == "HANDOFF.md" and archive.is_file():
-        scan_targets.append(archive)
-    finding_ids: set[str] = set()
-    for scan_target in scan_targets:
-        findings, scan_error = scan_path(scan_target)
-        if scan_error:
-            print(f"FAIL: secret scan could not complete: {scan_error}", file=sys.stderr)
+    if target.name == "HANDOFF.md" and archive.exists():
+        archive_findings, archive_error = scan_path(archive)
+        if archive_error:
+            print(f"FAIL: secret scan could not complete: {archive_error}", file=sys.stderr)
             return 2
+        scan_targets.append((archive.name, archive_findings))
+
+    finding_ids: set[str] = set()
+    for _name, findings in scan_targets:
         for finding in findings:
-            finding_id = f"{Path(finding.path).name}:{finding.line}:{finding.category}"
+            finding_id = _finding_id(finding)
             finding_ids.add(finding_id)
             print(f"SCAN HIT: {finding_id}; matched value redacted")
+
     unexpected = finding_ids - allowed_findings
     stale_allowances = allowed_findings - finding_ids
-    if unexpected:
-        print("FAIL: unapproved scan findings; redact them or explicitly allow each confirmed non-secret finding with --allow-finding FILENAME:LINE:CATEGORY. Target was not changed.", file=sys.stderr)
-        print("\n".join(sorted(unexpected)), file=sys.stderr)
-        return 1
     if stale_allowances:
-        print("FAIL: --allow-finding entry no longer matches the current candidate; inspect and remove the stale allowance:", file=sys.stderr)
+        print("FAIL: --allow-finding entry no longer matches the exact current line; inspect and remove the stale allowance:", file=sys.stderr)
         print("\n".join(sorted(stale_allowances)), file=sys.stderr)
+        return 1
+    if unexpected:
+        print("FAIL: unapproved scan findings; redact them or explicitly allow each confirmed non-secret finding with --allow-finding FILENAME:LINE:CATEGORY:LINE_SHA256. Target was not changed.", file=sys.stderr)
+        print("\n".join(sorted(unexpected)), file=sys.stderr)
         return 1
 
     lock_path = target.parent / f".{target.name}.baton.lock"
@@ -218,8 +251,9 @@ def safe_write(target: Path, candidate: Path, expected_sha: str | None, expected
         fd, tmp_name = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".tmp", dir=target.parent)
         tmp_path = Path(tmp_name)
         try:
-            with os.fdopen(fd, "wb") as output, candidate.open("rb") as source:
-                shutil.copyfileobj(source, output)
+            with os.fdopen(fd, "wb") as output:
+                # Critical: write the bytes already validated and scanned.
+                output.write(candidate_bytes)
                 output.flush()
                 os.fsync(output.fileno())
             os.chmod(tmp_path, old_mode)
@@ -237,14 +271,26 @@ def safe_write(target: Path, candidate: Path, expected_sha: str | None, expected
             if tmp_path.exists():
                 tmp_path.unlink()
 
-        final_issues = validate_file(target)
+        # Verify saved bytes equal the reviewed snapshot. This detects many
+        # non-cooperating edits/races after replace; it cannot prevent future
+        # edits by actors that ignore the cooperative lock.
+        try:
+            saved_bytes = target.read_bytes()
+            saved_content = saved_bytes.decode("utf-8")
+        except (OSError, UnicodeError) as exc:
+            print(f"FAIL: cannot verify saved file: {exc}", file=sys.stderr)
+            return 1
+        if saved_bytes != candidate_bytes:
+            print("FAIL: saved content differs from the validated/scanned snapshot; inspect before continuing.", file=sys.stderr)
+            return 1
+        final_issues = validate_content(saved_content)
         if final_issues:
             print("FAIL: post-save validation failed; inspect the saved file:", file=sys.stderr)
             print("\n".join(final_issues), file=sys.stderr)
             return 1
         print(f"SAVED: {target}")
-        print(f"LINES: {len(target.read_text(encoding='utf-8').splitlines())}")
-        print(f"SHA256: {sha256_file(target)}")
+        print(f"LINES: {len(saved_content.splitlines())}")
+        print(f"SHA256: {hashlib.sha256(saved_bytes).hexdigest()}")
         print("NOTE: lock coordinates only writers using this helper; verify for non-cooperating editors/agents.")
         return 0
     except OSError as exc:
@@ -268,8 +314,8 @@ def main() -> int:
     write_parser = subparsers.add_parser("safe-write", help="validate and replace a candidate if the target fingerprint still matches")
     write_parser.add_argument("--target", type=Path, required=True)
     write_parser.add_argument("--candidate", type=Path, required=True)
-    write_parser.add_argument("--allow-finding", action="append", default=[], metavar="FILENAME:LINE:CATEGORY",
-                              help="allow one inspected, explicitly approved non-secret scanner finding; repeat per finding")
+    write_parser.add_argument("--allow-finding", action="append", default=[], metavar="FILENAME:LINE:CATEGORY:LINE_SHA256",
+                              help="allow a reviewed non-secret false positive for this exact line content; repeat per finding")
     expected = write_parser.add_mutually_exclusive_group(required=True)
     expected.add_argument("--expected-sha", help="SHA-256 printed by the fingerprint command")
     expected.add_argument("--expected-missing", action="store_true", help="assert that the target did not exist when read")

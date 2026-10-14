@@ -3,6 +3,16 @@
 All notable changes to this project are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.1] — 2026-10-14
+
+### Fixed
+
+- `safe-write` now validates, scans, and writes a single candidate byte snapshot rather than reopening the candidate after scanning.
+- Post-save verification confirms the destination bytes exactly match the reviewed snapshot.
+- False-positive allowances now include a SHA-256 digest of the entire matching line, so content changes invalidate prior approvals.
+- Secret scanning now recognizes common compound environment variable assignments such as `OPENAI_API_KEY`, `AWS_SECRET_ACCESS_KEY`, `CLIENT_SECRET`, and `GITHUB_TOKEN`.
+- Added regression tests for candidate mutation after scanning, changed-content approvals, and compound environment variable names.
+
 ## [0.2.0] — 2026-10-14
 
 ### Added
