@@ -1,162 +1,120 @@
-# Worked Examples
+# Worked examples
 
-A bad handoff reads like a diary. A good handoff reads like a bug report
-plus a runbook. Same session, both ways.
+These examples show what the protocol should preserve. Names, paths, hashes,
+commands, and outputs below are illustrative, not claims about a real repository.
 
-## BAD — typical failure
+## Bad: diary-style handoff
 
 ```markdown
 # Handoff
 
-## What we did
-We spent the session refactoring the parser. The old code was pretty messy,
-so we discussed a few approaches and finally went with a lexer rewrite.
-Most things work now but nested tags are still sometimes broken. I also
-touched some tests. Earlier in the session we had some path issues on
-Windows but I think we fixed them.
-
-## Problem
-Nested tags throw an error sometimes. Needs debugging.
-
-## Next steps
-- Finish the parser
-- Maybe add more tests later
+We spent the session refactoring the parser. We tried some approaches and the
+new code mostly works. Nested tags sometimes fail. I think the Windows path
+problem is fixed. Need to finish testing and maybe release it.
 ```
 
 Why it fails:
 
-| Flaw | Cost in the next session |
+| Failure | Cost in the next session |
 |---|---|
-| "discussed a few approaches" — none recorded | Re-proposes every rejected approach; user re-argues from zero |
-| "sometimes broken" — no verbatim error, no repro | Session burned on reproducing what was already known |
-| "I also touched some tests" — no hashes, no results | Cannot tell done from claimed-done; re-verifies everything |
-| "I think we fixed them" — pitfall recalled from memory at session end | The one ban that mattered ("never use os.path") is lost |
-| No frontmatter | No drift detection; the repo may have moved on since the write |
-| No verify commands | "finish the parser" is not a step, it is a wish |
+| Rejected approaches are missing | The successor may repeat proposals the user already rejected |
+| “Sometimes fail” has no error or reproduction | The successor must rediscover the failure |
+| “Mostly works” does not state test scope | A partial test run may be mistaken for full validation |
+| “I think fixed” is not evidence | The successor cannot tell a verified fix from a memory claim |
+| “Maybe release” has no prerequisite | The next action is ambiguous and could have external side effects |
 
-## GOOD — same session, protocol applied
+## Good: evidence-scoped handoff
 
 ```markdown
 ---
-updated: 2026-10-13T21:30+08:00  # pasted from `date +%Y-%m-%dT%H:%M%z`
-git: { branch: feat/parser, head: a1b2c3d, dirty: true }
+schema_version: 2
+updated: "2026-10-14T16:45:00-07:00"
+git:
+  branch: feat/parser
+  head: a1b2c3d
+  dirty: true
+  scope: "snapshot before handoff write"
 captured: log
-tasks: [{ name: parser rewrite, status: blocked }]
+tasks:
+  - id: TASK-001
+    name: parser rewrite
+    status: blocked
 ---
 
 # 1. Task & user intent
-Replace regex-based HTML parser with a tokenizer/lexer split before the
-v0.4 release; unblocks table rendering.
-> "必须保持向后兼容，API 签名不能动" — user, 2026-10-13
-> "不要引入新依赖" — user, 2026-10-13
+Replace the regex parser with a tokenizer before the v0.4 release.
+> "必须保持向后兼容，API 签名不能动" — user, 2026-10-14
 
 # 2. User-rejected approaches
-- ❌ Third-party parser lib (html5ever) — rejected 10-13: 不引入新依赖
-- ❌ Incremental regex patching — rejected 10-13: 嵌套结构会继续崩
+- ❌ Third-party parser library — rejected 10-14: "不要引入新依赖"
 
-# 3. Completed
-- ✅ lexer rewrite → a1b2c3d, 42/42 tests pass
-- ✅ parser API surface frozen → src/parser.py, signature review done
-- ✅ migration guide drafted → docs/migration.md, verify: read "Breaking
-  changes" section covers all 4 renamed APIs
+# 3. Completed / claims
+- [verified] ✅ Lexer rewrite → `src/lexer.py`; evidence: `pytest tests/test_lexer.py -q` → `12 passed`; scope: working tree at WRITE.
+- [reported] Migration guide drafted → `docs/migration.md`; historical report exists; not re-read in this WRITE.
 
 # 4. Current blocker
-- Symptom: `KeyError: 'tag'` in test_nested_table
-  (full message: `File "src/parser.py", line 123, in _parse_open:
-   KeyError: 'tag'`)
-- Location: src/parser.py:123
-- Repro: `pytest tests/test_parser.py::test_nested_table -x`
+- Status: blocked
+- Symptom: `KeyError: 'tag'` in nested-table test.
+- Location: `src/parser.py:123`
+- Repro / evidence: `pytest tests/test_parser.py::test_nested_table -x` → same error observed.
 
 # 5. Next steps
-1. Guard missing `tag` key in `_parse_open()` → expected: repro passes;
-   verify: `pytest tests/test_parser.py -x -q`
-2. Wire lexer into `Document.from_html` → expected: table fixture renders;
-   verify: `pytest tests/test_render.py -k table -q`
-3. Delete dead regex paths → expected: no references to legacy parser;
-   verify: `grep -r legacy_parser src/` empty + full suite green
-4. Tag v0.4.0 release → 前置: steps 1-3 green + Q1 answered;
-   verify: `git tag v0.4.0` exists
+1. Guard missing `tag` key → expected: nested-table repro passes; verify: `pytest tests/test_parser.py -x -q`.
+2. Review public signatures before release → expected: no signature changes; verify: compare `inspect.signature` output with the baseline.
 
 # 6. Pitfalls & bans
-- [pitfall] 10-13 os.path joins broke on Windows CI — root cause: mixed
-  separators in fixture paths. Ban: pathlib everywhere, never os.path.
-- [pitfall] 10-13 `pytest -q` alone hid 2 skipped tests — root cause:
-  skipif markers on py<3.10. Ban: run `pytest -rs` before claiming green.
+- [pitfall] 10-14 `pytest -q` hid skipped tests; root cause: quiet output omitted the skip detail. Ban: use `pytest -rs` when validating skips.
 
 # 7. Environment quickref
-- Test: `pytest -x -q` · Build: `python -m build` · Lint: `ruff check src`
-- Python 3.12, WSL; CI also runs Windows (see ban above)
+- Test: `pytest -x -q` · Build: `python -m build` · Python 3.12; CI includes Windows.
 
-# 8. Open questions
-- Keep `parse_fragment()` public or make it private in v0.4?
+# 8. Open questions / PROMOTE candidates
+- Candidate: Windows CI path handling → `AGENTS.md`; confirm scope and whether already documented.
 ```
 
-Note: the protected sections (1 quotes, 2, 6) carry entries that were
-appended **during** the session, at the moment they happened — the dates
-and `captured: log` say so, and READ can check them. Section 4's repro
-command runs as-is. Step 4 shows a gated step cross-referencing its
-prerequisites instead of leaving them buried in Section 8. The migration
-guide entry is a non-git claim carrying its verification action inline.
+Why it is better:
 
-## Over-cap compression example
+- It preserves a verbatim user constraint and rejection.
+- It distinguishes a check run now from a historical report.
+- It records the blocker with a reproduction command.
+- Each next step has an observable result and verification method.
+- A release is not implicitly authorized by the handoff.
 
-The GOOD example is ~45 lines — fine. If a write lands at 130 lines,
-compress in the template's order. Section 3, before → after:
+## Resolved pitfall archive
+
+After a fix has been verified, move the entry (without rewriting its content)
+to `HANDOFF.archive.md`, appending a resolution marker. Confirm the write and
+scan the archive before removing the active entry from `HANDOFF.md`.
 
 ```markdown
-# before
-- ✅ lexer rewrite → commit a1b2c3d, 42/42 tests pass, 3 files changed,
-  2 skipped (py<3.10 markers)
+# Resolved handoff pitfalls
 
-# after
-- ✅ lexer rewrite → a1b2c3d, 42/42
+- [pitfall][resolved: d4e5f6a] `pytest -q` hid skipped tests — root cause: quiet output omitted skip detail. Ban: use `pytest -rs` when validating skips.
 ```
 
-And a 10-line narrative about the lexer design discussion: deleted
-entirely. It lives in git history; whatever survived as a rule is already
-in Section 6 as a ban.
+Do not load this archive on every READ. Open it only when an active item points
+to it or historical detail is needed. The archive is append-only; repository
+history remains the durable audit trail.
 
-## Resolving a pitfall (the protected exit valve)
+## Stale-write conflict
 
-During the session, Section 6 gains:
+Suppose the writer records a fingerprint of the current handoff, prepares a
+candidate, and another session edits `HANDOFF.md` before save. `safe-write`
+should refuse to replace the target when the current fingerprint differs from
+the expected fingerprint. Keep the candidate, inspect both versions, merge the
+new information, revalidate, rescan, and retry with the new fingerprint.
+
+Do not force-save the candidate just because its content looks newer. The helper
+coordinates only writers that use the helper; a manual editor or an agent that
+bypasses it can still race with the save. Re-read and validate after writing.
+
+## A reported claim that cannot be verified
 
 ```markdown
-- [pitfall] `pytest -q` hid 2 skipped tests — root cause: skipif markers.
-  Ban: run `pytest -rs` before claiming green.
+# 3. Completed / claims
+- [unverified] Upload reportedly completed; no remote receipt or asset URL is available. Verify: inspect the target service before claiming success.
 ```
 
-Later the pipeline is fixed (commit d4e5f6a). At WRITE, the entry moves
-to the tail — tagged, never edited:
-
-```markdown
-## Archived
-- [pitfall][resolved: d4e5f6a] `pytest -q` hid 2 skipped tests — root
-  cause: skipif markers. Ban: run `pytest -rs` before claiming green.
-```
-
-Archived lines do not count toward the 120-line budget and stay
-append-only until the task closes; then the section may be emptied in the
-same commit — git history is the archive.
-
-## Patterns worth stealing (from a real field test)
-
-A negative-finding blocker — the verdict carries its evidence:
-
-```markdown
-# 4. Current blocker
-- Symptom: `start_formulas.docx` missing from repo root (expected by plan)
-- Location: repo root, then full-tree search
-- Repro: `Test-Path .\start_formulas.docx` → False; `Get-ChildItem
-  -Recurse -Filter start_formulas.docx` → nothing. Verdict: never
-  written to disk — the next session must create it, not look for it.
-- Unrelated: `论文.docx` in root belongs to another task — do not hook on.
-```
-
-And the meta-pitfall it produced:
-
-```markdown
-- [pitfall] 10-14 "已上传" claimed without checking — root cause:
-  completion claims taken from session memory. Ban: every completion
-  claim is re-verified (Test-Path / compile / run) before it enters
-  the handoff.
-```
+This is better than claiming `verified` from memory or from a local file's
+existence. A failure to check should remain visible rather than being converted
+into success.

@@ -1,7 +1,8 @@
 # baton
 
-**Pass the baton, not the blur. Two-way session handoff protocol for AI coding agents.**
-**接力棒，不是模糊回忆。面向 AI 编码 Agent 的双向会话交接协议。**
+**Pass the baton, not the blur. Two-way session handoff for AI coding agents.**
+
+**接力棒，不是模糊回忆。面向 AI 编码 Agent 的双向会话交接。**
 
 [English](#english) · [中文](#中文)
 
@@ -9,181 +10,222 @@
 
 ## English
 
-### What it is
+### What it does
 
-When an agent session ends, its context dies with it. Compaction is lossy
-and automatic; recall from a dying context is worse. This skill makes the
-agent write a single `HANDOFF.md` — **rebuilt from evidence** (git, files,
-append-only logs), not recalled from memory — and, in the next session's
-first minutes, **verify** that document against the repo before trusting
-it.
+Baton helps one coding-agent session hand work to the next. It creates a single
+active `HANDOFF.md`, rebuilt from repository evidence and durable log entries,
+then checks that handoff against the current project before resuming.
 
-Core idea: a handoff contains *claims*, not *facts*. Write from evidence,
-read with verification.
+A handoff contains **claims to verify, not facts to trust blindly**.
 
-| Mechanism | What it does |
+| Protocol | Purpose |
 |---|---|
-| **LOG** | Pitfalls and user rejections are appended to protected sections the moment they happen — dated, crash- and compaction-resilient |
-| **WRITE** | Rebuilds HANDOFF.md from git + logs at session end; per-section budgets under a 120-line cap measured by command; lists PROMOTE candidates for your confirmation; scans for secrets; refuses to overwrite a handoff changed since the session last read it |
-| **READ** | New session checks git drift, spot-checks claims (harder on self-admitted reconstructed handoffs), echoes the plan back and waits for your confirmation before touching anything |
-| **PROMOTE** | Durable knowledge moves to CLAUDE.md/AGENTS.md by a decidable test — does the ban survive a task switch? The handoff stays a baton, not a wiki |
+| **LOG** | Capture user requirements, rejected approaches, and pitfalls when they happen. Re-read the written entry to confirm persistence. |
+| **WRITE** | Rebuild task state from files and commands; label claims `verified`, `reported`, `unverified`, or `blocked`; validate, scan, and save with a stale-write guard. |
+| **READ** | Compare recorded state with current reality, verify material claims, then resume according to action risk. |
+| **PROMOTE** | Propose durable cross-task knowledge for project instructions after deduplication, conflict review, and user confirmation. |
 
-Works with any tool that follows the [Agent Skills](https://github.com/anthropics/skills)
-SKILL.md convention (Claude Code and compatible runtimes).
+### What it does not guarantee
 
-### Why not just /compact or CLAUDE.md?
-
-- **Compaction** is lossy, automatic, and unverifiable — you get a summary,
-  not a state transfer.
-- **CLAUDE.md** holds conventions true across all sessions; it is the wrong
-  place for "what am I stuck on right now". This skill PROMOTEs durable
-  facts there and keeps task state in HANDOFF.md.
-- **A plain handoff template** (five paragraphs written at session end)
-  fails twice: it recalls from an already-degraded context, and nobody
-  verifies it on the other side. The protocol here fixes both.
+No prompt or skill can guarantee that every important event is logged before
+context loss, that a secret scanner catches all secrets, or that Git status
+proves an external upload/deployment. Baton makes evidence and uncertainty
+visible; it does not turn unverified claims into facts.
 
 ### Install
 
-```bash
-# personal — available in all projects
-cp -r baton ~/.claude/skills/
+Clone/download the repository into your agent's skills directory. Example for
+Claude Code:
 
-# or project-level — shared via the repo
-cp -r baton .claude/skills/
+```bash
+# Personal skill
+mkdir -p ~/.claude/skills
+git clone https://github.com/aggressive0/baton.git ~/.claude/skills/baton
+
+# Or install at project level from the project root
+mkdir -p .claude/skills
+git clone https://github.com/aggressive0/baton.git .claude/skills/baton
 ```
 
-### Usage
+The skill uses the Agent Skills `SKILL.md` convention. Other runtimes may use a
+different skill directory; follow that runtime's installation rules.
 
-**During a session** — no command needed; the agent appends pitfalls and
-rejections as they happen. You can also say:
+### Use
+
+During work, make sure important events are logged as they happen. Example:
 
 > Log this: `pytest -q` hides skipped tests
-> 记个坑：pytest -q 会隐藏 skip 的测试
 
-**Session ending:**
+When pausing unfinished work:
 
-> Session's ending, write a handoff
-> 会话要结束了，写份交接
+> Write a handoff for the next session.
 
-**New session:**
+In a fresh session:
 
-> Continue from the handoff
-> 继续上次的工作
+> Continue from the handoff.
 
-The agent will report git drift, restate task / blocker / plan, and wait
-for your confirmation before working. On any conflict, the repo wins and
-the handoff gets fixed on the spot.
+A low-risk, reversible next step can proceed after a concise status report. The
+agent should pause for ambiguity, material state conflicts, destructive actions,
+or external side effects. A handoff is never authorization to deploy, publish,
+delete data, or change permissions.
+
+### Validate the project files
+
+Requires Python 3; the scripts use only the Python standard library.
+
+```bash
+# Validate an existing handoff
+python scripts/handoff.py validate HANDOFF.md
+
+# Capture the fingerprint before preparing the candidate
+FINGERPRINT="$(python scripts/handoff.py fingerprint HANDOFF.md)"
+
+# Scan the candidate before saving
+python scripts/scan_secrets.py /tmp/HANDOFF.candidate.md
+
+# Save only if the file still matches the version you originally read
+python scripts/handoff.py safe-write \
+  --target HANDOFF.md \
+  --candidate /tmp/HANDOFF.candidate.md \
+  --expected-sha "$FINGERPRINT"
+```
+
+If `HANDOFF.md` did not exist when the candidate was prepared, use
+`--expected-missing` instead of `--expected-sha`.
+
+The safe-write helper coordinates writers that use the helper and replaces a
+validated file atomically. It does **not** lock manual editors or agents that
+bypass it; always re-read and validate after writing. A leftover lock file is
+not removed automatically: check whether a writer is active before deleting a
+stale lock.
+
+The scanner prints file, line, and finding category, but not the matched value.
+`safe-write` repeats the scan and blocks unapproved findings at the save
+boundary. An inspected non-secret false positive can be allowed explicitly with
+`--allow-finding FILENAME:LINE:CATEGORY`; never use this to retain a real secret.
+Exit codes: `0` no configured-pattern matches; `1` at least one finding; `2`
+usage/read error. A clean scan is not proof that no sensitive information is
+present; inspect the handoff manually too.
 
 ### Cold-start acceptance test
 
-Verify your install with a real handoff:
+1. Start a real, unfinished task. Capture at least one user decision or pitfall.
+2. Write a handoff. Validate it and inspect evidence statuses, protected entries,
+   next steps, and scan results.
+3. Start a genuinely fresh session with the same project and ask it to continue
+   from the handoff.
+4. Check whether it reports drift, preserves decisions, distinguishes verified
+   evidence from historical claims, and chooses a safe next action.
+5. Repeat after changing HEAD, dirtying a file, changing a recorded file, and
+   creating a stale-write conflict. The helper should refuse stale replacement.
 
-1. Pick a real task; work on it; hit at least one real pitfall.
-2. Say "write a handoff". Check HANDOFF.md: ≤ 120 lines, a verbatim error
-   in Section 4, your rejections in Section 2.
-3. Open a **fresh** session in the same repo. Say only: "continue from the
-   handoff".
-4. Pass = it restates task / blocker / plan, shows a git-drift report
-   first, asks **zero** clarifying questions about already-decided things,
-   and avoids every recorded pitfall. Fail = the handoff was the bug; fix
-   the handoff, not the protocol.
+Do not measure success only by Markdown formatting. A structurally valid file
+that loses a user constraint or misstates project state is still a failed handoff.
 
-### Repo layout
+### Repository layout
 
-```
+```text
 baton/
-├── SKILL.md              # the protocol: LOG / WRITE / READ / PROMOTE
+├── SKILL.md
 ├── references/
-│   ├── template.md       # HANDOFF.md template + per-field rules + scan list
-│   └── examples.md       # worked good/bad examples
+│   ├── template.md
+│   └── examples.md
 ├── scripts/
-│   └── scan.sh           # optional deterministic secret scan
+│   ├── handoff.py
+│   ├── scan_secrets.py
+│   └── scan.sh
+├── tests/
+├── TESTING.md
+├── MIGRATION.md
 ├── README.md
-├── LICENSE               # MIT
-└── CHANGELOG.md
+├── CHANGELOG.md
+└── LICENSE
 ```
-
-### Design decisions
-
-- HANDOFF.md is meant to be **committed**: teams share it, git history is
-  the archive — hence the secret scan on every write. Gitignore it if you
-  prefer; the skill adapts.
-- One file, always the current state. History lives in git.
-- Anti-bloat is enforced, not suggested: 120-line cap checked with a
-  command, per-section budgets, rebuild-from-evidence on every write
-  (prevents copy-of-copy degradation), and two append-only protected
-  sections — with one exit valve: fixed pitfalls move to a tail
-  `## Archived` section, outside the budget and still append-only.
-- Concurrency is handled, not hoped away: WRITE refuses to overwrite a
-  handoff that changed since the session last read it, and the branch
-  strategy is explicit — merge often, keep HANDOFF.md out of `main`, or
-  opt into per-branch `HANDOFF.<branch>.md` files.
-
----
 
 ## 中文
 
 ### 这是什么
 
-Agent 会话结束时，上下文随之消亡。compaction 有损且不可验证，靠残缺记忆回忆更糟。这个 skill 让 Agent 在会话结束前重建一份 `HANDOFF.md` —— **从证据重建**（git、文件、追加式日志），而不是从记忆里回忆 —— 并在新会话开始的头几分钟里**先验证再信任**。
+Baton 用于把一个 AI 编码会话的工作状态交给下一个会话。它让 Agent 从仓库证据和持久化日志重建 `HANDOFF.md`，并在恢复工作前核对交接内容与当前项目状态。
 
-核心原则：交接文档里是主张，不是事实。写入靠证据，读取必验证。
+核心原则：**交接文档里是待验证的主张，不是可以盲信的事实。**
 
-| 机制 | 作用 |
+| 协议 | 作用 |
 |---|---|
-| **LOG** | 踩坑和用户否决当场追加到受保护段，带日期，不怕崩溃和 compaction |
-| **WRITE** | 会话末从 git + 日志重建，逐节预算、120 行用命令实测；PROMOTE 候选列给你确认；保存前扫描秘钥；拒绝覆盖本会话没读过的最新交接 |
-| **READ** | 新会话先查 git 漂移、抽查断言（自报 reconstructed 的文档抽查加倍）、向你复述计划并等你确认，然后才动手 |
-| **PROMOTE** | 用可判定规则迁移永久知识——这条 ban 换个任务还成立吗？成立就进 CLAUDE.md/AGENTS.md，交接棒不做 wiki |
+| **LOG** | 用户要求、用户否决、踩坑发生时立即记录，并重新读取确认写入成功。 |
+| **WRITE** | 根据文件与命令重建任务状态；把主张标记为 `verified`、`reported`、`unverified` 或 `blocked`；校验、扫描，并防止覆盖已变化的交接文件。 |
+| **READ** | 比较交接记录与真实状态，核验重要主张，再按下一步操作的风险决定继续还是暂停。 |
+| **PROMOTE** | 经过去重、冲突检查和用户确认后，将跨任务有效的知识迁移到项目指令文件。 |
 
-适用于遵循 SKILL.md 规范的工具（Claude Code 及兼容运行时）。
+### 保证边界
 
-### 为什么不用 /compact 或 CLAUDE.md？
-
-- **Compaction** 有损、自动、无法验证 —— 你得到的是摘要，不是状态转移。
-- **CLAUDE.md** 存放对所有会话都成立的约定；"我现在卡在哪"这类任务状态放那里是错的。本 skill 把持久事实 PROMOTE 到那里，任务状态留在 HANDOFF.md。
-- **普通交接模板**（会话末写五个段落）会输两次：从已经退化的上下文里回忆，而且对面没人验证。本协议两头都修了。
+任何提示词或 Skill 都无法保证上下文丢失前每条重要事件都已记录，也不能保证秘钥扫描发现所有敏感信息，更不能只凭 Git 状态证明外部上传或部署成功。Baton 的目标是暴露证据与不确定性，而不是把未经验证的说法变成事实。
 
 ### 安装
 
-```bash
-# 个人级 —— 所有项目可用
-cp -r baton ~/.claude/skills/
+下载或克隆本仓库，并放到 Agent 的 Skill 目录。Claude Code 示例：
 
-# 或项目级 —— 随仓库共享
-cp -r baton .claude/skills/
+```bash
+# 个人级
+mkdir -p ~/.claude/skills
+git clone https://github.com/aggressive0/baton.git ~/.claude/skills/baton
+
+# 或在项目根目录安装为项目级 Skill
+mkdir -p .claude/skills
+git clone https://github.com/aggressive0/baton.git .claude/skills/baton
 ```
 
-### 用法
+其他运行时的 Skill 目录可能不同，请遵循对应工具的安装约定。
 
-**会话中** —— 无需指令，Agent 会在踩坑/被否决的瞬间自动记录；也可以主动说：
+### 使用
 
-> 记个坑：pytest -q 会隐藏 skip 的测试
+工作过程中，重要事件发生时就记录。例如：
 
-**会话要结束时：**
+> 记个坑：`pytest -q` 会隐藏被跳过的测试
 
-> 会话要结束了，写份交接
+暂停未完成的任务时：
 
-**新会话：**
+> 给下一个会话写份交接。
 
-> 继续上次的工作
+新会话中：
 
-Agent 会先报告 git 漂移，复述任务/卡点/计划，等你确认后才开工。交接与仓库现状冲突时，以仓库为准，并当场修正交接文档。
+> 从交接文件继续上次的工作。
+
+低风险、可逆的下一步可以在简短汇报状态后继续；需求不明、项目状态存在重大冲突、破坏性操作或外部副作用则应暂停。交接文件不是部署、发布、删除数据或修改权限的授权。
+
+### 本地验证工具
+
+需要 Python 3；脚本仅依赖 Python 标准库。
+
+```bash
+python scripts/handoff.py validate HANDOFF.md
+FINGERPRINT="$(python scripts/handoff.py fingerprint HANDOFF.md)"  # 编辑前先记录
+python scripts/scan_secrets.py /tmp/HANDOFF.candidate.md
+
+python scripts/handoff.py safe-write \
+  --target HANDOFF.md \
+  --candidate /tmp/HANDOFF.candidate.md \
+  --expected-sha "$FINGERPRINT"
+```
+
+如果准备候选文件时 `HANDOFF.md` 不存在，使用 `--expected-missing`。安全写入助手只协调同样使用它的写入方；手工编辑器或绕过助手的 Agent 不受它的锁保护，所以保存后仍需重新读取和校验。残留锁不会自动删除；确认没有写入进程后再清理。
+
+扫描器只显示文件、行号和命中类别，不打印可能泄漏的匹配值。退出码：`0` 没有配置规则命中；`1` 有命中；`2` 用法或读取错误。零命中不代表绝对安全，仍需人工检查。
+
+### 升级已有交接文件
+
+0.2.0 修改了交接文件结构，已有的 v0.1.x `HANDOFF.md` 不会原样通过新版校验器。升级后的第一次 WRITE 应重建新结构，同时保留受保护内容。请按 [MIGRATION.md](MIGRATION.md) 操作。
 
 ### 冷启动验收测试
 
-1. 选一个真实任务，做到至少踩一个真实的坑。
-2. 说"写份交接"。检查 HANDOFF.md：≤120 行、第 4 段有逐字报错、第 2 段有你的否决记录。
-3. 在同一仓库开一个**全新**会话，只说："继续上次的工作"。
-4. 通过标准：复述任务/卡点/计划；先出示 git 漂移报告；对已决事项提出 **0 个**澄清问题；避开所有记录的坑。不通过，就是交接文档有 bug —— 改文档，不改协议。
+1. 选一个真实、尚未完成的任务，至少记录一次用户决定或踩坑。
+2. 生成交接后运行校验，检查证据状态、受保护记录、下一步和扫描结果。
+3. 在同一项目启动一个真正的新会话，只要求它从交接继续。
+4. 检查它是否报告状态漂移、保留用户决定、区分验证证据和历史主张，并选择安全的下一步。
+5. 再测试 HEAD 变化、工作区变脏、记录文件变化和过期写入冲突；写入助手应拒绝覆盖旧版本。
 
-### 设计取舍
-
-- HANDOFF.md 默认**提交进 git**：团队共享，git 历史天然归档，所以每次写入都扫秘钥。想 gitignore 也可以，skill 会自适应。
-- 单文件，永远是当前态；历史交给 git。
-- 反膨胀是硬规则不是建议：120 行上限用命令测量；逐节行数预算；每次从证据重建而非复制上一份（防"传话游戏"式退化）；两段只增不删的受保护段，唯一出口是已修复的坑打上 `resolved:` 标记移入文件尾部 `## Archived` 区（不计入预算、依旧只增不删）。
-- 并发冲突是被处理的，不是被祈祷掉的：WRITE 覆盖前校验文件自本会话上次读取后未被他人改动；HANDOFF.md 跟随功能分支，团队需显式选型（勤合并 / 不进 main / 可选 `HANDOFF.<branch>.md` 按分支分文件）。
+不要只看 Markdown 格式是否正确。结构正确但丢失用户约束或误报项目状态，仍然是失败的交接。
 
 ## License
 
-MIT
+MIT. See `LICENSE`.

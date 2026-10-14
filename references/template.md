@@ -1,232 +1,202 @@
-# HANDOFF.md Template
+# HANDOFF.md template and field rules
 
-Copy the skeleton below, then follow the per-field rules. Target: ≤ 120
-lines total. Sections marked **[protected]** are append-only during the
-session and carried forward verbatim on every rebuild — never compressed,
-never paraphrased.
+The active `HANDOFF.md` must contain **120 lines or fewer in total**, including
+frontmatter, headings, and blank lines. Resolved pitfall history belongs in the
+separate, optional `HANDOFF.archive.md`; do not append an unbounded archive to
+the active handoff.
 
 ## Skeleton
 
+Copy this skeleton and replace every placeholder. Keep the eight numbered
+sections in this order.
+
 ```markdown
 ---
-updated: <pasted output of a time command — see frontmatter rules>
-git: { branch: <branch>, head: <short hash|none>, dirty: <bool> }
-captured: log|reconstructed
-tasks: [{ name: <short name>, status: active|blocked|review|done }]
+schema_version: 2
+updated: "<actual ISO-8601 timestamp from system command>"
+git:
+  branch: <branch-or-none>
+  head: <short-hash-or-none>
+  dirty: <true-or-false>
+  scope: "snapshot before handoff write"
+captured: log
+tasks:
+  - id: TASK-001
+    name: <short task name>
+    status: active
 ---
 
-# 1. Task & user intent                                   <!-- ≤10 lines -->
+# 1. Task & user intent
 <2-4 lines: what is being built and why it matters>
-> "<hard requirement in the user's exact words>" — user, <date>   [protected]
+> "<exact user requirement>" — user, <date>
 
-# 2. User-rejected approaches                        <!-- ≤10, protected -->
-- ❌ <approach> — rejected <MM-DD>: <their reason>
+# 2. User-rejected approaches
+- ❌ <approach> — rejected <date>: <reason>
 
-# 3. Completed                                            <!-- ≤15 lines -->
-- ✅ <what> → <commit hash | file path>, <verification result>
+# 3. Completed / claims
+- [verified] ✅ <claim> → <file-or-commit>; evidence: `<command>` → <result>; scope: <commit/state>
+- [reported] <historical claim>; evidence: <report/log>; not rechecked in this WRITE
 
-# 4. Current blocker                                      <!-- ≤10 lines -->
-- Symptom: <verbatim error message, untruncated>
-- Location: <file:line>
-- Repro: <exact command that reproduces it>
+# 4. Current blocker
+- Status: <blocked|none>
+- Symptom: <verbatim, untruncated error or observed behavior>
+- Location: <file:line or search scope>
+- Repro / evidence: `<exact command>` → <observed result>
 
-# 5. Next steps                                           <!-- ≤15 lines -->
-1. <action> [前置: <step#>] → expected: <observable result>; verify: <command>
+# 5. Next steps
+1. <action> → expected: <observable result>; verify: `<command>`
 
-# 6. Pitfalls & bans                            <!-- ≤30, protected -->
-- [pitfall] <MM-DD> <phenomenon> — root cause: <cause>. Ban: <rule for the next session>
+# 6. Pitfalls & bans
+- [pitfall] <date> <symptom> — root cause: <cause|unknown>. Ban: <prevention rule>
 
-# 7. Environment quickref                                  <!-- ≤6 lines -->
-- Test: `<cmd>` · Build: `<cmd>` · Run: `<cmd>`
-- <versions / OS constraints not yet promoted to CLAUDE.md/AGENTS.md>
+# 7. Environment quickref
+- Test: `<command>` · Build: `<command>` · Run: `<command>`
+- <task-relevant version/OS constraint not yet promoted>
 
-# 8. Open questions                                        <!-- ≤5 lines -->
-- <question the user has not answered yet>
-
-## Archived                                    <!-- excluded from budget -->
-- [pitfall][resolved: <commit|date>] <original entry, unchanged>
+# 8. Open questions / PROMOTE candidates
+- <unanswered question or candidate + destination + decision pending>
 ```
 
-## Section line budgets
+## Frontmatter rules
 
-Budgets include each section heading. Active total ≈ 106 lines plus blank
-lines — comfortably under the 120 hard cap, which is checked with a
-command, never by eye: `wc -l HANDOFF.md` (POSIX) · `(gc HANDOFF.md |
-measure -Line).Lines` (PowerShell) · `python -c "print(sum(1 for _ in
-open('HANDOFF.md')))"` (portable fallback).
+- `schema_version`: use `2` for this template. If the format later changes,
+  increment the version and document migration in `CHANGELOG.md`.
+- `updated`: paste the output of a clock command; do not guess. POSIX:
+  `date +%Y-%m-%dT%H:%M%z`; PowerShell:
+  `Get-Date -Format "yyyy-MM-ddTHH:mmzzz"`; portable fallback:
+  `python -c "import datetime;print(datetime.datetime.now().astimezone().isoformat())"`.
+- `git.branch`, `git.head`, and `git.dirty` must come from actual commands.
+  For a non-Git directory, use `branch: none`, `head: none`, and `dirty: false`
+  with `scope: "no Git repository; file checks only"`.
+- `git.dirty` records the state observed **before the handoff write**. State
+  the scope because saving the handoff itself can change Git status.
+- `captured` is `log` only if protected entries were actually appended during
+  the current session and their persistence was checked. Otherwise use
+  `reconstructed`. Do not infer capture history from how polished the file is.
+- Use one `tasks` entry per in-flight task. `status` must be `active`, `blocked`,
+  `review`, or `done`. A done task must not have active next steps unless the
+  task is explicitly reopened.
+- The validator checks required headings, frontmatter basics, timestamps,
+  placeholders, and line count. It does not validate the truth of natural-language
+  claims or fully parse arbitrary YAML.
 
-| Part | Budget |
-|---|---|
-| Frontmatter | ≤ 5 |
-| 1 Task & user intent | ≤ 10 — never cut the quotes |
-| 2 User-rejected approaches | ≤ 10 |
-| 3 Completed | ≤ 15 |
-| 4 Current blocker | ≤ 10 |
-| 5 Next steps | ≤ 15 |
-| 6 Pitfalls & bans (active) | ≤ 30 |
-| 7 Environment quickref | ≤ 6 |
-| 8 Open questions | ≤ 5 |
-| `## Archived` | excluded from all budgets |
+## Section rules
 
-Over budget? See "Compression order" at the bottom.
+### 1. Task & user intent [user quotes protected]
 
-## Field rules
+- State what is being built and why, not the entire process history.
+- Keep hard requirements in the user's original wording whenever practical.
+  Attribute quotes and add the date. Do not turn an ambiguous paraphrase into a
+  stricter requirement than the user actually gave.
+- Do not store credentials, secrets, private customer details, or unnecessary
+  personal information. Redact and keep only the requirement that matters.
 
-### Frontmatter
+### 2. User-rejected approaches [append-only]
 
-- `updated`: run a time command and paste the output. Models guess clocks
-  badly; never write a time from memory. `date +%Y-%m-%dT%H:%M%z` (POSIX) ·
-  `Get-Date -Format "yyyy-MM-ddTHH:mmzzz"` (PowerShell) · `python -c
-  "import datetime;print(datetime.datetime.now().astimezone().isoformat())"`
-  (portable fallback where coreutils are unavailable).
-- `captured`: `log` if Sections 2/6 were appended by LOG during the
-  session; `reconstructed` if rebuilt from memory (first adoption on an
-  ongoing project). Self-reported — READ weights entry dates over this
-  flag — but lying here defeats the trust model. `reconstructed` triggers
-  wider spot-checks on READ.
-- `git`: fill from actual `git status` / `git rev-parse --short HEAD`,
-  never from memory. `dirty: true` if any uncommitted changes exist.
-  No repo → `git: none`. Empty repo (no commits) → `head: none`.
-- `tasks`: one entry per task in flight. `status` ∈ active | blocked |
-  review | done. A task marked `done` must not still appear in Section 5.
+- Record approach, reason, and date as close to the event as possible.
+- Do not delete a rejection because a later decision changes. Append a dated
+  reversal and label which decision is current. A newer explicit user
+  instruction supersedes an older instruction when they conflict.
+- Do not archive this section merely because an approach is old; task context
+  may make the decision relevant again.
 
-### 1. Task & user intent
+### 3. Completed / claims [evidence status required]
 
-- Two to four lines. A reader with zero context must learn **what and
-  why** — not how (that is Sections 3 and 5).
-- Hard requirements go in as **verbatim quotes**. Paraphrase loses intent:
-  "keep it backwards compatible" is not "API 签名不能动". Quotes survive
-  every rebuild.
+- `verified`: checked in this WRITE, with evidence and a scope that can be
+  identified (commit, file state, command output, test report, or external result).
+- `reported`: a historical record supports the claim, but it was not checked now.
+- `unverified`: claimed in conversation/memory without adequate evidence.
+- `blocked`: verification was attempted or is needed but cannot be completed;
+  state the reason and a concrete verification action.
+- A successful test applies to the tested code state. If relevant files changed
+  after the test, rerun it before marking the current state verified.
+- Git does not prove external uploads, deployments, remote mutations, or
+  business outcomes. Use the external system's result or mark the claim pending.
+- Numbers must come from command output or artifacts, never model memory.
+- Prefer one line per claim. Remove session narrative during rebuild.
 
-### 2. User-rejected approaches [protected]
+### 4. Current blocker [retain evidence]
 
-- The highest-value, most-often-omitted section. Without it, the next
-  session will politely re-propose the rejected approach and burn the
-  user's patience re-arguing from zero.
-- One line each: approach + the user's reason + the date, written at LOG
-  time (`rejected 10-13`). An undated entry cannot be told apart from a
-  deathbed recollection. In a `reconstructed` file, coarse dates are
-  acceptable (`约 2026-09 上旬`) — an empty date is not. Append-only. If
-  the user reverses a decision, append the reversal — never edit or
-  delete the original entry.
+- If there is no blocker, write `Status: none` and omit the other fields.
+- Record the exact error/output, file and line if available, and the command or
+  search scope that produced the finding. Do not paraphrase the only copy of an
+  error message.
+- For a missing file or absent result, state where and how it was searched.
+  Mark similarly named or unrelated files if a successor could confuse them.
+- Do not run destructive reproductions just to fill this section. If reproduction
+  is unsafe, unavailable, or expensive, state that plainly.
 
-### 3. Completed
+### 5. Next steps [must be actionable]
 
-- Evidence only: commit hash or file path + verification result. One line
-  per item. Process narrative ("we tried X, then Y") is deleted on
-  rebuild — git history holds it.
-- Non-git artifacts (docx, binaries, deployments) cannot be verified from
-  the repo — so the verification action lives inside the claim:
-  `✅ paper P0 fixes → 论文.docx, 22 edits, verify: open 摘要 last
-  paragraph`. A bare claim is unverifiable by design.
-- First section to compress when over the line cap.
+- Order steps by priority. Each step includes an action, observable expected
+  result, and verification method. A step without a verification method is a
+  wish, not an executable next step.
+- Use commands that work in the next session's shell, or label the required
+  shell (for example `PowerShell 7`, `git-bash`, or `POSIX sh`). Prefer portable
+  commands where practical.
+- Delete completed steps; carry forward unfinished steps only after checking
+  they remain relevant. Add dependencies inline, such as `前置: step 1 passes`.
+- A prerequisite disguised as an open question is a task. Upgrade it to a
+  verification step or cross-reference it from the step it gates.
+- Do not refer only to another machine's path. Inline essential content or label
+  it `[local-only]` and include an alternative to recover it.
 
-### 4. Current blocker
+### 6. Pitfalls & bans [active entries append-only]
 
-- Symptom: **verbatim** error message. Not "KeyError: something" — the
-  full message, untruncated.
-- Location as `file:line`. Repro must be a runnable command. If no repro
-  exists, write what you tried and why it failed.
-- A blocker that is an absence ("file missing", "not uploaded") carries
-  evidence of the search, not just the verdict: the command you ran and
-  what it returned. Mark unrelated nearby artifacts explicitly, so the
-  next session does not hook onto them.
-- When the blocker resolves, rewrite this section on the next WRITE.
-  Resolved blockers never accumulate here — they become Section 3 or 6.
-
-### 5. Next steps
-
-- Priority order. Each step: action → expected observable result → verify
-  command. A step without a verify command is a wish, not a step.
-- Carry unfinished steps forward from the previous handoff; delete
-  finished ones. This section must shrink as often as it grows.
-- Steps that gate each other carry the dependency inline:
-  `4. Push release → 前置: step 3 green`. Never let a step depend on an
-  open question in Section 8 — upgrade the question to a step, or
-  cross-reference it: `5. Make repo public → 前置: Q3 privacy review`.
-  A question has no owner; a step does.
-- Steps addressed at the reader (tests, checks) say so: "You are the READ
-  test for this file: run the READ protocol and report." Never leave a
-  step that could mean "do X" or "you are the X".
-- No references a fresh session cannot resolve. Anything outside the repo
-  (local memory files, another machine) → inline the essential content,
-  or mark `[local-only]` and put the essentials in the step itself.
-- Verify commands are runnable in the next session's shell: run each
-  once at WRITE, or annotate the shell it needs. `grep`/`wc` do not
-  exist in PowerShell 5 — use `Select-String` / `Measure-Object -Line`
-  there. An unverified verify command is a protocol violation in
-  miniature.
-
-### 6. Pitfalls & bans [protected]
-
-- One line each: phenomenon — root cause — ban. The ban is phrased as an
-  instruction: "Ban: pathlib everywhere, never os.path for paths that
-  reach CI."
-- Append-only, survives every rebuild. A pit with no root cause yet is
-  still recorded — write `root cause: unknown` and keep the verbatim error.
-- Permanent lessons get PROMOTEd to CLAUDE.md/AGENTS.md during WRITE; the
-  entry also stays here until the task ends.
-- Exit valve: when a pitfall is fixed, tag the entry
-  `resolved: <commit|date>` and move it verbatim to `## Archived` —
-  outside every budget, still append-only, never edited. Unresolved
-  entries never leave Section 6. Section 2 rejections never archive.
-- PROMOTE check at WRITE: a ban that survives a task switch (environment,
-  tool, or user-behavior fact) moves to CLAUDE.md/AGENTS.md after user
-  confirmation — decidable test in SKILL.md. Removal is not an
-  append-only violation; the information persists, relocated.
-- A to-do hiding inside a pitfall entry gets split: the fact stays here,
-  the action becomes a Section 5 step, the two cross-reference each
-  other. Readers plan from Section 5; actions buried here do not exist
-  for them.
+- Record the symptom/error first, even if the root cause is unknown. Add the
+  cause and prevention rule later as a new note or explicit update that does not
+  erase the original symptom.
+- Keep active entries verbatim during the task. Split any to-do hidden in a
+  pitfall into Section 5 and cross-reference it.
+- A pitfall resolved by a verified fix may be copied verbatim into
+  `HANDOFF.archive.md` with `resolved: <commit-or-date>`; after verifying that
+  the archive append succeeded, it may be removed from the active list during
+  WRITE. If archive persistence fails, leave it active.
+- User-specific rejections are not automatically durable project rules. PROMOTE
+  only after checking scope, duplication, conflicts, and obtaining confirmation.
 
 ### 7. Environment quickref
 
-- Only what a fresh session needs to run, verify, or build **this task**.
-- Long-lived environment facts belong in CLAUDE.md/AGENTS.md (PROMOTE),
-  not here.
+- Include only what a fresh session needs to run or verify this task: essential
+  commands, versions, platform constraints, and relevant environment state.
+- Long-lived conventions belong in the project's durable agent instructions
+  after a reviewed PROMOTE, not duplicated indefinitely in this handoff.
 
-### 8. Open questions
+### 8. Open questions / PROMOTE candidates
 
-- Anything you would otherwise interrupt the user to ask mid-session.
-  Parked here, they can be answered asynchronously.
-- Gate check: a question that is a prerequisite for a next step is not a
-  question — upgrade it to a verify-able step or cross-reference it from
-  the step it gates (see Section 5 rules).
+- Questions must be genuinely unanswered and must not duplicate a next step.
+- A PROMOTE candidate must include proposed destination and reason it should
+  survive a task switch. Keep unconfirmed candidates here and report them at
+  each WRITE until decided.
 
-## Secret scan (before every WRITE save)
+## Secret scan
 
-HANDOFF.md is designed to be committed, so the scan runs as a command and
-its output is shown to the user. A silent pass is a protocol violation.
+Run before saving every modified `HANDOFF.md` and `HANDOFF.archive.md`.
 
 ```sh
-sh scripts/scan.sh HANDOFF.md    # preferred: deterministic, prints evidence
-# or, by hand:
-grep -nE 'sk-[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|xox[bp]-|eyJ[A-Za-z0-9_-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY|[A-Za-z0-9/+=]{40}|\b(api_key|apikey|password|passwd|secret|token)\b|Authorization:' HANDOFF.md
+python scripts/scan_secrets.py HANDOFF.md
+# If HANDOFF.archive.md exists, include it as an additional argument:
+python scripts/scan_secrets.py HANDOFF.md HANDOFF.archive.md
+# POSIX / Git Bash wrapper:
+sh scripts/scan.sh HANDOFF.md
 ```
 
-Pattern notes:
+Do not pass `HANDOFF.archive.md` if it does not exist; missing paths are errors.
 
-- `eyJ…` catches JWTs; the bare 40-char class catches AWS secret keys and
-  also full hashes / base64 blobs — a hit is a **candidate**, the human
-  decides.
-- Word matches (`token`, `secret`, `password`) false-positive in normal
-  technical discussion. That is fine: the scan surfaces, the user disposes.
-- No regex catches everything — also eyeball for pasted `.env` / config
-  blocks.
+The scanner reports the file, line number, and finding category but intentionally
+redacts the matched value. It exits `0` for no configured-pattern matches, `1`
+for one or more findings, and `2` for usage/read errors. A finding is not proof
+that the line is a secret; inspect the local file and decide. No matches is not
+proof that no sensitive content exists: review the document manually as well.
+Redact by default. Do not paste secret values into chat or logs.
 
-Disposition flow:
+## Compression order
 
-1. Run the scan; show the user **every hit with its line**, or the
-   script's "0 hits" evidence line.
-2. The user decides per hit: redact or allow. Never auto-pass.
-3. Redact as `<redacted: reason>` — never delete a line silently.
+1. Move resolved pitfalls to `HANDOFF.archive.md` after confirming the append.
+2. Compress Section 3 to concise, scoped evidence.
+3. Remove Section 7 prose that is not needed for this task.
+4. Shorten nonessential prose in Section 1, but preserve the user's exact quote.
 
-## Compression order (over budget)
-
-0. Move `resolved:`-tagged pitfalls to `## Archived` (outside the budget)
-1. Section 3 → commit hashes only
-2. Section 7 → keep test/build commands, drop prose
-3. Section 1 prose → but never the quotes
-
-Never compress Sections 2, 4, or active Section 6 — unresolved entries
-stay in place; that is what Archived is for.
+Never silently truncate protected entries or active blocker evidence. If the
+protected facts do not fit within the 120-line cap, report the conflict and ask
+the user how to split the task/state; do not declare a successful WRITE.
